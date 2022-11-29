@@ -10,7 +10,7 @@ void display(const cv::Mat& src);
 
 //the fast fourier transform is based on radix-2 algorithm
 //the reverse_num_list can calculate the order of index in first step
-std::vector<int>* reverse_num_list(int length);
+std::vector<unsigned int>* reverse_num_list(int length);
 
 //the radix-2 algorithm is suitable for image with 2-based side length
 //function find_length is to find the closest 2^n number

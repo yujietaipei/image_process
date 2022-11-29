@@ -37,48 +37,37 @@ void display(const cv::Mat& src){
 
 //the fast fourier transform is based on radix-2 algorithm
 //the reverse_num_list can calculate the order of index in first step
-std::vector<int>* reverse_num_list(int length){
+std::vector<unsigned int>* reverse_num_list(int length){
 
-    if(length == 1){
-        std::vector<int>* idx = new std::vector<int>;
-        idx -> push_back(0);
-        return idx;
+    //check the size of image is power of 2
+    unsigned int  count = 0;
+    unsigned int  len = length;
+    while(len){
+        if((len & 1) == 1){
+            count++;
+        }
+        len  >>=  1;
+    }
+    if(count !=1){
+        throw  std::invalid_argument("the length has to be the power of 2");
     }
 
-    int digits = 0;
-    //calculate the amount of bits to express numbers[0, length)
-    int tmp = length;
-    while(tmp != 1){
-        digits++;
-        tmp /= 2;
-    }
+    unsigned int digits = __builtin_clz(length) + 1;
 
-    std::vector<bool> bits(digits,0);
-    std::vector<int>* idx = new std::vector<int>(length,0);
+    std::vector<unsigned int>* idx = new std::vector<unsigned int>(length,0);
     //array idx is used to store the order of index in the first step of fourier transform
 
-    for(int i = 0;i < length; i++){
-        int num = 0;
-
-        for(int j = 0;j < digits;j++){
-            num = num*2 + bits[j];
-        }
+    for(unsigned int i = 0;i < length; i++){
+        unsigned int num = i;
+        num = (num & 0xffff0000) >> 16 | (num & 0x0000ffff) << 16;
+        num = (num & 0xff00ff00) >> 8 | (num & 0x00ff00ff) << 8;
+        num = (num & 0xf0f0f0f0)  >> 4 | (num & 0x0f0f0f0f) << 4;
+        num = (num & 0xcccccccc) >> 2 | (num & 0x33333333) << 2;
+        num = (num & 0xaaaaaaaa) >> 1 | (num & 0x55555555) << 1;
+        num >>= digits;
         idx -> at(i) = num;
-        //plus one to the reversed bit expression
-        int k = 0;
-        bool carry = 1;
-        while(carry != 0 && k < bits.size()){
-            if(bits[k] == 0){
-                bits[k] = 1;
-                carry = 0;
-            }
-            else{
-                bits[k] = 0;
-                carry = 1;
-                k++;
-            }
         }
-    }
+
     return idx;
 }
 
@@ -104,8 +93,8 @@ cv::Vec2f comp_multiply(cv::Vec2f oper1,cv::Vec2f oper2){
 //hence, the functions of both transform are combined and separated by flag (1 for fft, 0 for ift)
 //this function is for 1-dimensional transform, and the transform result is stored in source mat
 //the shift is for handling the fft along vertical direction
-void fft_ift_base(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<int>* idx_set,bool  flag){
-    int length = idx_set -> size();
+void fft_ift_base(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<unsigned int>* idx_set,bool  flag){
+    unsigned int length = idx_set -> size();
     const double PI = atan(1.0)*4;
     int group_size = 2;         //the dft length in each steps and it will grow on 2 base
 
@@ -144,11 +133,11 @@ void fft_ift_base(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<i
     }
 }
 
-void fft_1d_inplace(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<int>* idx_set){
+void fft_1d_inplace(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<unsigned int>* idx_set){
         fft_ift_base(it,shift,idx_set,1);
    }
 
-void ift_1d_inplace(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<int>* idx_set){
+void ift_1d_inplace(cv::MatIterator_<cv::Vec2f> it, int shift, const std::vector<unsigned int>* idx_set){
         fft_ift_base(it,shift,idx_set,0);
 }
 
@@ -185,7 +174,7 @@ cv::Mat* fft_2d(cv::Mat& src){
     }
 
     //fourier transform in vertical direction
-    std::vector<int>* idx_set2 = reverse_num_list(rows);
+    std::vector<unsigned int>* idx_set2 = reverse_num_list(rows);
     cv::MatIterator_<cv::Vec2f> it = res -> begin<cv::Vec2f>();
     for(int j = 0;j < cols;j++){
         fft_1d_inplace(it,res -> cols,idx_set2);
@@ -202,7 +191,7 @@ void ift(cv::Mat& src){
     }
 
     //inverse fourier transform in horizontal direction
-    std::vector<int>* idx_set1 = reverse_num_list(src.cols);
+    std::vector<unsigned int>* idx_set1 = reverse_num_list(src.cols);
     cv::MatIterator_<cv::Vec2f> row = src.begin<cv::Vec2f>();
     for(int i = 0;i < src.rows;i++){
         ift_1d_inplace(row,1,idx_set1);
@@ -210,7 +199,7 @@ void ift(cv::Mat& src){
     }
 
     //inverse fourier transform in vertical direction
-    std::vector<int>* idx_set2 = reverse_num_list(src.rows);
+    std::vector<unsigned int>* idx_set2 = reverse_num_list(src.rows);
     cv::MatIterator_<cv::Vec2f>col = src.begin<cv::Vec2f>();
     for(int j = 0 ; j < src.cols ; j++){
         ift_1d_inplace(col,src.cols,idx_set2);
