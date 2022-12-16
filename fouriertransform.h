@@ -3,6 +3,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include <windows.h>
 
 //output the data in mat (only for uchar, double, and float)
 void display(const cv::Mat& src);
@@ -37,5 +38,11 @@ cv::Mat* fft_2d(cv::Mat& src);
 
 //2-dimensional inverse fourier transform (based on 1d ift along horizontal and vertical direction)
 void ift(cv::Mat& src);
+
+//thread function for 2-d fourier transform
+DWORD WINAPI threadFunction(LPVOID lpParam);
+
+//thread function for 2-d inverse fourier transform
+DWORD WINAPI inverseThreadFunction(LPVOID lpParam);
 
 #endif // FOURIERTRANSFORM_H
